@@ -38,13 +38,13 @@ public class FileController {
         String filename = request.getHeader(httpSyncer.XFILENAME);
         boolean needSync = false;
         if (filename == null || filename.isBlank()) {
-            filename = file.getOriginalFilename();
             needSync = true;
+            filename = FileUtil.getUUIDFilename(file.getOriginalFilename());
         }
-        File dest = new File(uploadPath + "/" + filename);
-        if (!dest.exists()) {
-            dest.mkdirs();
-        }
+
+        String subDir = FileUtil.getSubDir(filename);
+        File dest = new File(uploadPath + "/" + subDir + "/" + filename);
+
         file.transferTo(dest);
         if (needSync) {
             // 同步文件到backup
@@ -56,15 +56,16 @@ public class FileController {
     @SneakyThrows
     @RequestMapping("/download")
     public void download(String name, HttpServletResponse response) {
-        String path = uploadPath + "/" + name;
+        String subDir = FileUtil.getSubDir(name);
+        String path = uploadPath + "/" + subDir + "/" + name;
         File file = new File(path);
         try (FileInputStream fileInputStream = new FileInputStream(file);
              InputStream inputStream = new BufferedInputStream(fileInputStream);
              ServletOutputStream outputStream = response.getOutputStream()) {
             // 添加一些response
             response.setCharacterEncoding("utf-8");
-            response.setContentType("application/octet-stream");
-            response.setHeader("Content-Disposition", "attachment;filename=" + name);
+            response.setContentType(FileUtil.getMimeTYpe(name));
+            // response.setHeader("Content-Disposition", "attachment;filename=" + name);
             response.setHeader("Content-Length", String.valueOf(file.length()));
 
             // 读取文件 并逐段输出
