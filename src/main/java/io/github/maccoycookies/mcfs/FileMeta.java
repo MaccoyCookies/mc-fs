@@ -25,6 +25,6 @@ public class FileMeta {
 
     private Map<String, String> tags = new HashMap<>();
 
-    // private String md5;
+    private String downloadUrl;
 
 }

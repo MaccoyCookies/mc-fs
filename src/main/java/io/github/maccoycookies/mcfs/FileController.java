@@ -34,8 +34,17 @@ public class FileController {
     @Value("${mcfs.backupUrl}")
     private String backupUrl;
 
+    @Value("${mcfs.downloadUrl}")
+    private String downloadUrl;
+
     @Value("${mcfs.autoMd5}")
     private boolean autoMd5;
+
+    @Value("${mcfs.syncBackup}")
+    private boolean syncBackup;
+
+    @Autowired
+    private MqSyncer mqSyncer;
 
     @Autowired
     private HttpSyncer httpSyncer;
@@ -65,6 +74,7 @@ public class FileController {
         file.transferTo(dest);
         // 2. 处理meta
         FileMeta fileMeta = new FileMeta();
+        fileMeta.setDownloadUrl(downloadUrl);
         fileMeta.setName(filename);
         fileMeta.setOriginalFilename(originalFilename);
         fileMeta.setSize(file.getSize());
@@ -79,9 +89,19 @@ public class FileController {
         // 2.2 存放到数据库
         // 2.3 存放到配置中心或者注册中心
 
-        // 3. 同步文件到backup
+        // 3. 同步文件到backup (同步?异步?)
         if (needSync) {
-            httpSyncer.sync(dest, backupUrl, originalFilename);
+            if (syncBackup) {
+                try {
+                    httpSyncer.sync(dest, backupUrl, originalFilename);
+                } catch (Exception exception) {
+                    exception.printStackTrace();
+                    // MqSyncer.sync(dest, backupUrl);
+                }
+            } else {
+                // 异步
+                mqSyncer.sync(fileMeta);
+            }
         }
         return originalFilename;
     }
