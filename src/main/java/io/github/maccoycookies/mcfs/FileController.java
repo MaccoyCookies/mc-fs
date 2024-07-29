@@ -45,11 +45,19 @@ public class FileController {
     public String upload(@RequestParam("file") MultipartFile file, HttpServletRequest request) {
 
         // 1. 处理文件
-        String filename = request.getHeader(httpSyncer.XFILENAME);
+        String filename = request.getHeader(HttpSyncer.XFILENAME);
         boolean needSync = false;
+        String originalFilename = file.getOriginalFilename();
+        // upload 上传文件
         if (filename == null || filename.isBlank()) {
             needSync = true;
-            filename = FileUtil.getUUIDFilename(file.getOriginalFilename());
+            filename = FileUtil.getUUIDFilename(originalFilename);
+        } else {
+            // 同步文件
+            String xor = request.getHeader(HttpSyncer.XORIGFILENAME);
+            if (xor != null && !xor.isBlank()) {
+                originalFilename = xor;
+            }
         }
 
         String subDir = FileUtil.getSubDir(filename);
@@ -58,7 +66,7 @@ public class FileController {
         // 2. 处理meta
         FileMeta fileMeta = new FileMeta();
         fileMeta.setName(filename);
-        fileMeta.setOriginalFilename(file.getOriginalFilename());
+        fileMeta.setOriginalFilename(originalFilename);
         fileMeta.setSize(file.getSize());
         if (autoMd5) {
             fileMeta.getTags().put("md5", DigestUtils.md5DigestAsHex(new FileInputStream(dest)));
@@ -73,9 +81,9 @@ public class FileController {
 
         // 3. 同步文件到backup
         if (needSync) {
-            httpSyncer.sync(dest, backupUrl);
+            httpSyncer.sync(dest, backupUrl, originalFilename);
         }
-        return file.getOriginalFilename();
+        return originalFilename;
     }
 
     @SneakyThrows
